@@ -1,5 +1,5 @@
 # Planner Plugins
-Plugins to the [Navigation Lite](https://github.com/slaghuis/navigation_lite/tree/octomap) Planner server.  
+Plugins to the [Navigation Lite](https://github.com/slaghuis/navigation_lite/tree/octomap) Planner server.  These plugins, or similar onces are required by the Navigation Lite stack to run.
 
 ## Theta Star 
 A Theta Star algoritm implementation
