@@ -1,0 +1,8 @@
+<library path="planner_plugins">
+  <class type="planner_plugins::NoPlan" base_class_type="navigation_lite::RegularPlanner">
+    <description>This is a square plugin.</description>
+  </class>
+  <class type="planner_plugins::ThetaStar" base_class_type="navigation_lite::RegularPlanner">
+    <description>This is a triangle plugin.</description>
+  </class>
+</library>
