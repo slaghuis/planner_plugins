@@ -38,6 +38,7 @@ class Pathfinder
         friend Pathfinder;
 
         virtual size_t getNodeCount() const = 0;
+        virtual double searchResolution() const = 0;
         virtual Cost distance(const NodeId one, const NodeId two) const = 0;
         virtual bool lineOfSight(const NodeId n1, const NodeId n2) const = 0;
         virtual std::vector<std::pair<NodeId, Cost>> getNodeNeighbors(const NodeId point) const = 0;
@@ -48,7 +49,7 @@ class Pathfinder
 
     // The heap element stores variables that informs the search algirithm
     struct HeapElement {
-      NodeId id;                             // A reference to coordinates od this in the octomap
+      NodeId id;                             // A reference to coordinates of this in the octomap
       Cost g;			                           // Used for tie-breaking
       Cost f;		                             // Initialized to the heuristic distance to the goal when generated.
       std::shared_ptr<HeapElement> parent;	 // Parent of this node.
@@ -71,15 +72,18 @@ class Pathfinder
       open.clear();
       std::shared_ptr<HeapElement> start = std::make_shared<HeapElement>(start_point);
       start->g = 0.0;
-      start->f = start->g + adaptor.distance(start->id, end_point) * weight;
+      start->f = start->g + adaptor.distance(start->id, end_point_) * weight;
       start->parent = start;
       open.push_back(start);
     
       closed.clear();   
+      
+      double threshold = adaptor.searchResolution();
     
-      while (!open.empty()) {
+      while (!open.empty()) {        
         std::shared_ptr<HeapElement> s = open_pop();
-        if(s->id == end_point) {
+        
+        if(s->id.distance( end_point ) < threshold) {  
           return reconstructPath(s);
         }  
         
@@ -91,7 +95,7 @@ class Pathfinder
                            [&neighbor](const std::shared_ptr<HeapElement> &a) 
                            {
                              return a->id == neighbor.first;
-                           }) == closed.end() ) {  // Neghbor is not in closed
+                           }) == closed.end() ) {  // Neighbor is not in closed
             
             std::vector<std::shared_ptr<HeapElement>>::iterator f = std::find_if( open.begin(), open.end(),
                                                                                  [&neighbor](const std::shared_ptr<HeapElement> &a) 

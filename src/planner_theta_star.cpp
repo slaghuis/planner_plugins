@@ -7,7 +7,7 @@
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
+// distributed under the License is distributed on an "AS IS" BASIS,we
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
@@ -19,6 +19,7 @@
 
 #include <navigation_lite/regular_planner.hpp>
 #include "planner_plugins/costmapadaptor.hpp"
+#include "planner_plugins/utils.hpp"
 #include <cmath>
 
 namespace planner_plugins
@@ -31,18 +32,24 @@ namespace planner_plugins
                  std::shared_ptr<tf2_ros::Buffer> tf,
                  std::shared_ptr<octomap::OcTree> costmap) override
       {
-        parent_node_ = parent;
-        name_ = name;
+        node_ = parent;
+        plugin_name_ = name;
         tf_buffer_ = tf;
         costmap_ = costmap;
+        
+        logger_ = node_->get_logger();
+        clock_ = node_->get_clock();
     
-        weight_ = parent_node_->declare_parameter<float>("weight", 100.0);
+        declare_parameter_if_not_declared(
+          node_, plugin_name_ + ".weight", rclcpp::ParameterValue(100.0));
+          
+        node_->get_parameter(plugin_name_ + ".weight", weight_);  
       }
       
       nav_msgs::msg::Path createPlan( const geometry_msgs::msg::PoseStamped & start,
                                       const geometry_msgs::msg::PoseStamped & goal) override
       {            
-        RCLCPP_DEBUG(parent_node_->get_logger(), "Requested ThetaStar to plan a path from [%.2f, %.2f, %.2f] to [%.2f, %.2f, %.2f]",
+        RCLCPP_DEBUG(logger_, "Requested ThetaStar to plan a path from [%.2f, %.2f, %.2f] to [%.2f, %.2f, %.2f]",
         start.pose.position.x,
         start.pose.position.y,
         start.pose.position.z,
@@ -52,18 +59,19 @@ namespace planner_plugins
         
         nav_msgs::msg::Path global_path;
         
-        // Instantiating our costmap adaptor
-        CostmapAdaptor adaptor(costmap_, 3);
+        // Instantiating our costmap adaptor.  
+        // If for example the octree has a depth of 16 and a resolution of 0.2m then a depth of 14 would
+        // render a granularity of 0.2*2^(16-14) = 0.8m
+        CostmapAdaptor adaptor(costmap_, 14);
         // ... and the path finder
         Pathfinder pathfinder(adaptor, weight_);    //Weight is used to tune search performance
     
         octomap::point3d plan_start(start.pose.position.x, start.pose.position.y, start.pose.position.z);
-        octomap::point3d plan_goal(goal.pose.position.x, goal.pose.position.y, goal.pose.position.z);
-    
-    
+        octomap::point3d plan_goal(goal.pose.position.x, goal.pose.position.y, goal.pose.position.z);   
+        
         auto found_path = pathfinder.search( plan_start, plan_goal );
     
-        rclcpp::Time now = parent_node_->get_clock()->now();
+        rclcpp::Time now = node_->get_clock()->now();
         global_path.header.stamp = now;
         global_path.header.frame_id = start.header.frame_id;
     
@@ -76,8 +84,7 @@ namespace planner_plugins
           pose.pose.position.x = (double) waypoint.x();
           pose.pose.position.y = (double) waypoint.y();
           pose.pose.position.z = (double) waypoint.z();      
-          global_path.poses.push_back(pose);
-    
+          global_path.poses.push_back(pose);    
         }
         
         return global_path;
@@ -101,10 +108,12 @@ namespace planner_plugins
     protected:
       double side_length_;
       double side_length;
-      rclcpp::Node::SharedPtr parent_node_;
-      std::string name_;
+      rclcpp::Node::SharedPtr node_;
+      std::string plugin_name_;
       std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
       std::shared_ptr<octomap::OcTree> costmap_;
+      rclcpp::Logger logger_ {rclcpp::get_logger("ThetaStar")};
+      rclcpp::Clock::SharedPtr clock_;
   
       float weight_;
 

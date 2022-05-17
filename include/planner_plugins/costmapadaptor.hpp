@@ -36,16 +36,13 @@ public:
   
   virtual size_t getNodeCount() const override
   {
-    return 0;
+    return octree_->getNumLeafNodes();  // Not used in this adaptor
   }
 
   //return the distance between two nodes
   virtual Cost distance(const NodeId one, const NodeId two) const override
   {
-    
-    return sqrt( pow(two.x() - one.x(), 2) +
-                 pow(two.y() - one.y(), 2) +
-                 pow(two.z() - one.z(), 2) );       
+    return one.distance(two);   
   }
 
   //Return true if there is a direct path between n1 and n2
@@ -59,20 +56,25 @@ public:
     return !node_hit;
   }
   
-  // Return a vector of all the neighbors ids and the cost to travel to them
-  //In this adaptor we only need to check the four tileneibors and the cost is always 1
+  virtual double searchResolution() const override
+  {
+    return  octree_->getResolution() * pow(2, octree_->getTreeDepth() - working_depth_);
+  };
   
+  // Return a vector of all the neighbors ids and the cost to travel to them
+  // In this adaptor we only need to check the four tile neigbors and the cost is always 1  
   virtual std::vector<std::pair<NodeId, Cost>> getNodeNeighbors(const NodeId node) const override
   {
     std::vector<std::pair<NodeId, Cost>> neighbors;
     
-    double search_resolution = octree_->getResolution() * pow(2, octree_->getTreeDepth() - working_depth_);
+    double search_resolution = searchResolution();
     Pathfinder::Cost cost = 10.0;
     
     double x, y, z;    
     x = node.x() - search_resolution;
     y = node.y();
-    z = node.z();    
+    z = node.z();
+    
     octomap::OcTreeKey neighbor_node = octree_->coordToKey(x, y, z, working_depth_);
     NodeId point = octree_->keyToCoord(neighbor_node);
     neighbors.push_back( {point, cost} );
